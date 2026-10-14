@@ -1,6 +1,7 @@
 package br.com.alurafood.pagamentos.service;
 
 import br.com.alurafood.pagamentos.dto.PagamentoDTO;
+import br.com.alurafood.pagamentos.http.PedidoClient;
 import br.com.alurafood.pagamentos.model.Pagamento;
 import br.com.alurafood.pagamentos.model.Status;
 import br.com.alurafood.pagamentos.repository.PagamentoRepository;
@@ -10,14 +11,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class PagamentoService {
     private final PagamentoRepository pagamentoRepository;
     private final ModelMapper modelMapper;
+    private final PedidoClient pedidoClient;
 
-    public PagamentoService(PagamentoRepository pagamentoRepository, ModelMapper modelMapper) {
+    public PagamentoService(PagamentoRepository pagamentoRepository, ModelMapper modelMapper, PedidoClient pedidoClient) {
         this.pagamentoRepository = pagamentoRepository;
         this.modelMapper = modelMapper;
+        this.pedidoClient = pedidoClient;
     }
 
     public Page<PagamentoDTO> obterTodosPagamentos(Pageable paginacao) {
@@ -50,5 +55,28 @@ public class PagamentoService {
 
     public void excluirPagamento(Long id) {
         pagamentoRepository.deleteById(id);
+    }
+
+    public void confirmarPagamento(Long id) {
+        Optional<Pagamento> pagamento = pagamentoRepository.findById(id);
+
+        if(!pagamento.isPresent()) {
+            throw new EntityNotFoundException();
+        }
+
+        pagamento.get().setStatus(Status.CONFIRMADO);
+        pagamentoRepository.save(pagamento.get());
+        pedidoClient.atualizaPagamento(pagamento.get().getPedidoId());
+    }
+
+    public void alterarStatus(Long id) {
+        Optional<Pagamento> pagamento = pagamentoRepository.findById(id);
+
+        if(!pagamento.isPresent()) {
+            throw new EntityNotFoundException();
+        }
+
+        pagamento.get().setStatus(Status.CONFIRMADO_SEM_INTEGRACAO);
+        pagamentoRepository.save(pagamento.get());
     }
 }
