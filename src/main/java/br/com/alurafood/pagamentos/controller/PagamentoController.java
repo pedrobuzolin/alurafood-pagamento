@@ -5,6 +5,8 @@ import br.com.alurafood.pagamentos.service.PagamentoService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -18,9 +20,11 @@ import java.net.URI;
 @RequestMapping("/pagamentos")
 public class PagamentoController {
     private final PagamentoService pagamentoService;
+    private final RabbitTemplate rabbitTemplate;
 
-    public PagamentoController(PagamentoService pagamentoService) {
+    public PagamentoController(PagamentoService pagamentoService, RabbitTemplate rabbitTemplate) {
         this.pagamentoService = pagamentoService;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @GetMapping
@@ -39,6 +43,7 @@ public class PagamentoController {
         PagamentoDTO pagamento = pagamentoService.criarPagamento(dto);
         URI endereco = uriBuilder.path("/pagamentos/{id}").buildAndExpand(pagamento.id()).toUri();
 
+        rabbitTemplate.convertAndSend("pagamentos.ex", "", pagamento);
         return ResponseEntity.created(endereco).body(pagamento);
     }
 
